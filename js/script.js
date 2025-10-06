@@ -3,9 +3,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const SIDEBAR_STATE_KEY = 'sidebar.open.keys';
 
     function getSidebarHtmlPath() {
-        // 若当前页面位于 pages/ 下，sidebar.html 相对为 ./sidebar.html；否则为 pages/sidebar.html
-        const isInPages = /\/pages\//.test(window.location.pathname) || window.location.pathname.endsWith('/pages') || window.location.pathname.endsWith('pages');
-        return isInPages ? 'sidebar.html' : 'pages/sidebar.html';
+        // 统一从 base 出发的相对路径
+        return 'pages/sidebar.html';
     }
 
     function persistOpenState(navItem, isOpen) {
@@ -63,24 +62,26 @@ document.addEventListener('DOMContentLoaded', function() {
                     persistOpenState(item, willOpen);
                 });
             }
-            // 点击主目录链接也可切换展开/收起
             const mainLink = item.querySelector(':scope > .nav-link');
             if (mainLink) {
                 mainLink.addEventListener('click', function() {
                     const willOpen = !item.classList.contains('open');
                     item.classList.toggle('open');
                     persistOpenState(item, willOpen);
-                    // 不阻止默认，交由 SPA 处理 md 加载
                 });
             }
         });
     }
 
+    function getMdFromUrl() {
+        const url = new URL(window.location.href);
+        return url.searchParams.get('md');
+    }
+
     async function renderMarkdownByName(mdName) {
         const mount = document.getElementById('markdown-content');
         if (!mount || !mdName) return;
-        const prefix = /\/pages\//.test(window.location.pathname) ? '../content/' : 'content/';
-        const mdPath = prefix + mdName.replace(/\.md$/, '') + '.md';
+        const mdPath = 'content/' + mdName.replace(/\.md$/, '') + '.md';
         if (typeof marked === 'undefined') {
             await new Promise((resolve, reject) => {
                 const s = document.createElement('script');
@@ -107,7 +108,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const mdName = a.getAttribute('data-md');
                 if (!mdName) return;
                 e.preventDefault();
-                const href = a.getAttribute('href') || '#';
+                const href = 'index.html?md=' + encodeURIComponent(mdName);
                 window.history.pushState({ md: mdName }, '', href);
                 renderMarkdownByName(mdName);
                 document.body.setAttribute('data-md', mdName);
@@ -115,45 +116,17 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    async function renderMarkdownIfNeeded() {
-        const mount = document.getElementById('markdown-content');
-        if (!mount) return;
-        const mdAttr = document.body.getAttribute('data-md') || document.documentElement.getAttribute('data-md');
-        const mdPathAttr = document.body.getAttribute('data-md-path') || document.documentElement.getAttribute('data-md-path');
-        if (mdPathAttr) {
-            const mdPath = /\/pages\//.test(window.location.pathname) ? mdPathAttr : mdPathAttr.replace(/^\.?\/?content\//, 'content/');
-            if (typeof marked === 'undefined') {
-                await new Promise((resolve, reject) => {
-                    const s = document.createElement('script');
-                    s.src = 'https://cdn.jsdelivr.net/npm/marked@4.3.0/marked.min.js';
-                    s.onload = resolve;
-                    s.onerror = reject;
-                    document.head.appendChild(s);
-                }).catch(() => {});
-            }
-            try {
-                const resp = await fetch(mdPath, { cache: 'no-cache' });
-                if (!resp.ok) throw new Error('加载Markdown失败');
-                const mdText = await resp.text();
-                const html = (typeof marked !== 'undefined') ? marked.parse(mdText) : mdText;
-                mount.innerHTML = html;
-            } catch (e) {
-                mount.innerHTML = '<p style="color:#c00">Markdown 加载失败。</p>';
-            }
-            return;
-        }
-        if (mdAttr) {
-            await renderMarkdownByName(mdAttr);
-        }
+    async function initialRender() {
+        const mdParam = getMdFromUrl();
+        const mdAttr = document.body.getAttribute('data-md') || 'home';
+        await renderMarkdownByName(mdParam || mdAttr);
     }
 
     window.addEventListener('popstate', function(e) {
         const state = e.state || {};
-        const mdName = state.md || document.body.getAttribute('data-md');
-        if (mdName) {
-            renderMarkdownByName(mdName);
-        }
+        const mdName = state.md || getMdFromUrl() || document.body.getAttribute('data-md') || 'home';
+        if (mdName) renderMarkdownByName(mdName);
     });
 
-    injectSidebar().then(renderMarkdownIfNeeded);
+    injectSidebar().then(initialRender);
 });

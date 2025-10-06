@@ -1,169 +1,159 @@
-// 侧边栏切换功能
+// 子菜单展开/折叠功能（保持侧边栏固定，精简为最小必要交互）
 document.addEventListener('DOMContentLoaded', function() {
-    const toggleBtn = document.getElementById('toggleBtn');
-    const sidebar = document.getElementById('sidebar');
-    
-    // 创建浮动切换按钮
-    const floatingToggle = document.createElement('button');
-    floatingToggle.innerHTML = '☰';
-    floatingToggle.className = 'floating-toggle';
-    floatingToggle.style.cssText = `
-        position: fixed;
-        top: 20px;
-        left: 20px;
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        background: #2c3e50;
-        color: white;
-        border: none;
-        cursor: pointer;
-        font-size: 20px;
-        z-index: 1001;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-        display: none;
-        transition: all 0.3s ease;
-    `;
-    document.body.appendChild(floatingToggle);
-    
-    if (toggleBtn && sidebar) {
-        // 侧边栏内的按钮
-        toggleBtn.addEventListener('click', function() {
-            sidebar.classList.toggle('collapsed');
-            updateFloatingButton();
-        });
-        
-        // 浮动按钮
-        floatingToggle.addEventListener('click', function() {
-            sidebar.classList.toggle('collapsed');
-            updateFloatingButton();
-        });
-        
-        function updateFloatingButton() {
-            if (sidebar.classList.contains('collapsed')) {
-                floatingToggle.style.display = 'block';
-            } else {
-                floatingToggle.style.display = 'none';
-            }
-        }
-        
-        // 初始化
-        updateFloatingButton();
+    const SIDEBAR_STATE_KEY = 'sidebar.open.keys';
+
+    function getSidebarHtmlPath() {
+        // 若当前页面位于 pages/ 下，sidebar.html 相对为 ./sidebar.html；否则为 pages/sidebar.html
+        const isInPages = /\/pages\//.test(window.location.pathname) || window.location.pathname.endsWith('/pages') || window.location.pathname.endsWith('pages');
+        return isInPages ? 'sidebar.html' : 'pages/sidebar.html';
     }
-});
 
-// 子菜单展开/折叠功能
-document.addEventListener('DOMContentLoaded', function() {
-    const submenuToggles = document.querySelectorAll('.submenu-toggle');
-    
-    submenuToggles.forEach(toggle => {
-        toggle.addEventListener('click', function(e) {
-            e.preventDefault();
-            const navItem = this.closest('.nav-item');
-            navItem.classList.toggle('open');
+    function persistOpenState(navItem, isOpen) {
+        const key = navItem.getAttribute('data-key');
+        if (!key) return;
+        let openKeys = [];
+        try { openKeys = JSON.parse(localStorage.getItem(SIDEBAR_STATE_KEY) || '[]'); } catch (e) { openKeys = []; }
+        const set = new Set(openKeys);
+        if (isOpen) { set.add(key); } else { set.delete(key); }
+        localStorage.setItem(SIDEBAR_STATE_KEY, JSON.stringify(Array.from(set)));
+    }
+
+    function restoreOpenStates(root) {
+        let openKeys = [];
+        try { openKeys = JSON.parse(localStorage.getItem(SIDEBAR_STATE_KEY) || '[]'); } catch (e) { openKeys = []; }
+        const set = new Set(openKeys);
+        root.querySelectorAll('.nav-item.has-submenu').forEach(item => {
+            const key = item.getAttribute('data-key');
+            if (key && set.has(key)) { item.classList.add('open'); }
         });
-    });
-});
+    }
 
-// 移动端侧边栏处理
-document.addEventListener('DOMContentLoaded', function() {
-    const sidebar = document.getElementById('sidebar');
-    const mainContent = document.querySelector('.main-content');
-    
-    // 点击主内容区域时关闭侧边栏（移动端）
-    if (mainContent) {
-        mainContent.addEventListener('click', function() {
-            if (window.innerWidth <= 768) {
-                sidebar.classList.remove('open');
+    async function injectSidebar() {
+        const path = getSidebarHtmlPath();
+        try {
+            const resp = await fetch(path, { cache: 'no-cache' });
+            if (!resp.ok) throw new Error('加载sidebar失败');
+            const html = await resp.text();
+            const container = document.getElementById('sidebar');
+            if (container) {
+                const temp = document.createElement('div');
+                temp.innerHTML = html;
+                const aside = temp.querySelector('aside.sidebar');
+                container.innerHTML = aside ? aside.innerHTML : html;
+                bindSidebarInteractions(container);
+                enableSpaNavigation(container);
+                restoreOpenStates(container);
+            }
+        } catch (e) {
+            bindSidebarInteractions(document);
+            enableSpaNavigation(document);
+            restoreOpenStates(document);
+        }
+    }
+
+    function bindSidebarInteractions(root) {
+        root.querySelectorAll('.nav-item.has-submenu').forEach(item => {
+            const toggle = item.querySelector('.submenu-toggle');
+            if (toggle) {
+                toggle.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const willOpen = !item.classList.contains('open');
+                    item.classList.toggle('open');
+                    persistOpenState(item, willOpen);
+                });
+            }
+            // 点击主目录链接也可切换展开/收起
+            const mainLink = item.querySelector(':scope > .nav-link');
+            if (mainLink) {
+                mainLink.addEventListener('click', function() {
+                    const willOpen = !item.classList.contains('open');
+                    item.classList.toggle('open');
+                    persistOpenState(item, willOpen);
+                    // 不阻止默认，交由 SPA 处理 md 加载
+                });
             }
         });
     }
-    
-    // 窗口大小改变时的处理
-    window.addEventListener('resize', function() {
-        if (window.innerWidth > 768) {
-            // 桌面端：移除移动端的open类，但保留collapsed状态
-            sidebar.classList.remove('open');
-        } else {
-            // 移动端：默认隐藏侧边栏
-            sidebar.classList.add('open');
-        }
-    });
-    
-    // 初始化：根据屏幕大小设置侧边栏状态
-    if (window.innerWidth <= 768) {
-        sidebar.classList.add('open');
-    }
-    
-});
 
-// 平滑滚动
-document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-    anchor.addEventListener('click', function (e) {
-        e.preventDefault();
-        const target = document.querySelector(this.getAttribute('href'));
-        if (target) {
-            target.scrollIntoView({
-                behavior: 'smooth',
-                block: 'start'
+    async function renderMarkdownByName(mdName) {
+        const mount = document.getElementById('markdown-content');
+        if (!mount || !mdName) return;
+        const prefix = /\/pages\//.test(window.location.pathname) ? '../content/' : 'content/';
+        const mdPath = prefix + mdName.replace(/\.md$/, '') + '.md';
+        if (typeof marked === 'undefined') {
+            await new Promise((resolve, reject) => {
+                const s = document.createElement('script');
+                s.src = 'https://cdn.jsdelivr.net/npm/marked@4.3.0/marked.min.js';
+                s.onload = resolve;
+                s.onerror = reject;
+                document.head.appendChild(s);
+            }).catch(() => {});
+        }
+        try {
+            const resp = await fetch(mdPath, { cache: 'no-cache' });
+            if (!resp.ok) throw new Error('加载Markdown失败');
+            const mdText = await resp.text();
+            const html = (typeof marked !== 'undefined') ? marked.parse(mdText) : mdText;
+            mount.innerHTML = html;
+        } catch (e) {
+            mount.innerHTML = '<p style="color:#c00">Markdown 加载失败。</p>';
+        }
+    }
+
+    function enableSpaNavigation(root) {
+        root.querySelectorAll('a[data-md]').forEach(a => {
+            a.addEventListener('click', function(e) {
+                const mdName = a.getAttribute('data-md');
+                if (!mdName) return;
+                e.preventDefault();
+                const href = a.getAttribute('href') || '#';
+                window.history.pushState({ md: mdName }, '', href);
+                renderMarkdownByName(mdName);
+                document.body.setAttribute('data-md', mdName);
             });
-        }
-    });
-});
-
-// 页面加载动画
-window.addEventListener('load', function() {
-    document.body.style.opacity = '0';
-    document.body.style.transition = 'opacity 0.5s ease-in-out';
-    
-    setTimeout(() => {
-        document.body.style.opacity = '1';
-    }, 100);
-});
-
-// 返回顶部按钮
-function createBackToTop() {
-    const backToTop = document.createElement('button');
-    backToTop.innerHTML = '↑';
-    backToTop.className = 'back-to-top';
-    backToTop.style.cssText = `
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        background: #3498db;
-        color: white;
-        border: none;
-        cursor: pointer;
-        font-size: 20px;
-        opacity: 0;
-        visibility: hidden;
-        transition: all 0.3s ease;
-        z-index: 1000;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-    `;
-    
-    document.body.appendChild(backToTop);
-    
-    window.addEventListener('scroll', function() {
-        if (window.scrollY > 300) {
-            backToTop.style.opacity = '1';
-            backToTop.style.visibility = 'visible';
-        } else {
-            backToTop.style.opacity = '0';
-            backToTop.style.visibility = 'hidden';
-        }
-    });
-    
-    backToTop.addEventListener('click', function() {
-        window.scrollTo({
-            top: 0,
-            behavior: 'smooth'
         });
-    });
-}
+    }
 
-// 初始化返回顶部按钮
-createBackToTop();
+    async function renderMarkdownIfNeeded() {
+        const mount = document.getElementById('markdown-content');
+        if (!mount) return;
+        const mdAttr = document.body.getAttribute('data-md') || document.documentElement.getAttribute('data-md');
+        const mdPathAttr = document.body.getAttribute('data-md-path') || document.documentElement.getAttribute('data-md-path');
+        if (mdPathAttr) {
+            const mdPath = /\/pages\//.test(window.location.pathname) ? mdPathAttr : mdPathAttr.replace(/^\.?\/?content\//, 'content/');
+            if (typeof marked === 'undefined') {
+                await new Promise((resolve, reject) => {
+                    const s = document.createElement('script');
+                    s.src = 'https://cdn.jsdelivr.net/npm/marked@4.3.0/marked.min.js';
+                    s.onload = resolve;
+                    s.onerror = reject;
+                    document.head.appendChild(s);
+                }).catch(() => {});
+            }
+            try {
+                const resp = await fetch(mdPath, { cache: 'no-cache' });
+                if (!resp.ok) throw new Error('加载Markdown失败');
+                const mdText = await resp.text();
+                const html = (typeof marked !== 'undefined') ? marked.parse(mdText) : mdText;
+                mount.innerHTML = html;
+            } catch (e) {
+                mount.innerHTML = '<p style="color:#c00">Markdown 加载失败。</p>';
+            }
+            return;
+        }
+        if (mdAttr) {
+            await renderMarkdownByName(mdAttr);
+        }
+    }
+
+    window.addEventListener('popstate', function(e) {
+        const state = e.state || {};
+        const mdName = state.md || document.body.getAttribute('data-md');
+        if (mdName) {
+            renderMarkdownByName(mdName);
+        }
+    });
+
+    injectSidebar().then(renderMarkdownIfNeeded);
+});

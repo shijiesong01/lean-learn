@@ -1,4 +1,4 @@
-Lean Learn：Lean学习平台
+# Lean Learn：Lean学习平台
 
 ## （一）项目介绍
 

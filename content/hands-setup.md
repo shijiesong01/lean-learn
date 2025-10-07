@@ -22,6 +22,8 @@ curl "https://elan.lean-lang.org/elan-init.sh" -sSf | sh -s -- -y --default-tool
 elan --version
 ```
 
+---
+
 ### 1.2 配置lean项目（含Mathlib）
 
 #### （1）创建新的lean项目<br/>
@@ -49,6 +51,18 @@ lake exe cache get
 ```
 lake build
 ```
+4. 重启终端，否则可能一直显示错误，运行代码测试
+```
+-- 尝试导入 mathlib 的基础模块
+import Mathlib.Data.Nat.Basic
+
+-- 仅使用 mathlib 中定义的自然数类型
+def main : IO Unit := do
+  -- 如果能正常打印，说明 mathlib 已正确导入
+  IO.println "mathlib 导入成功！"
+  -- 验证自然数类型可正常使用（来自 mathlib）
+  IO.println s!"自然数示例: {1 + 2}"
+```
 
 
 #### （2）配置mathematics_in_lean
@@ -72,4 +86,7 @@ lake exe cache get
 ```
 lake build
 ```
+
+## （二）Windows下安装
+
 

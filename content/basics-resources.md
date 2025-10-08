@@ -15,7 +15,8 @@
 原文档：https://hrmacbeth.github.io/math2001/
 6. Lean 形式化数学⭐<br/>
 原文档：https://leanprover-community.github.io/mathematics_in_lean/<br/>
-中文文档：https://www.leanprover.cn/math-in-lean-zh/
+中文文档：https://www.leanprover.cn/math-in-lean-zh/<br/>
+GitHub代码：https://github.com/leanprover-community/mathematics_in_lean
 7. Lean 函数式编程<br/>
 原文档：https://lean-lang.org/functional_programming_in_lean/<br/>
 中文文档：https://www.leanprover.cn/fp-lean-zh/
@@ -25,7 +26,7 @@
 中文文档：https://www.leanprover.cn/type-checking-in-lean-zh/
 10. 自然数游戏<br/>
 链接：https://adam.math.hhu.de/#/g/leanprover-community/nng4
-11. Lean社区<br/>
+11. Lean社区⭐<br/>
 https://leanprover-community.github.io/index.html
 12. lean Mathlab库<br/>
 原地址：https://github.com/leanprover-community/mathlib4<br/>

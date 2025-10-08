@@ -6,7 +6,7 @@
 2. 下载插件“Lean 4”
 3. 搜索中输入以下内容进入安装指导界面
 ```
-> Lean4.Docs.ShowSetupGuide
+> Lean 4.Docs.ShowSetupGuide
 ```
 4. 下载elan<br/>
 >Elan是Lean的版本管理器，可以自动管理所有不同版本的Lean，并确保在打开项目时使用正确的版本。<br/>
@@ -86,7 +86,12 @@ lake exe cache get
 ```
 lake build
 ```
+4. 打开电子书，输入
+```
+> Lean 4: Open Document View
+```
 
 ## （二）Windows下安装
 
+不推荐，暂无正式教程
 

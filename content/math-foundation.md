@@ -1,127 +1,113 @@
 # 基础
 
-在阅读过程中，建议将代码复制到自己的lean环境下，会有更好的学习效果
+接下来开始正式进行《mathematics in lean》的讲解，相比原教程进行了大量的篇幅缩减，并直接关注核心要点，并仅列出相应的1-2道例题
+
+在粘贴或书写代码时，最好每添加一行/一步，都去观察LeanInfoView的Tactic state反馈。
 
 ---
-
-## （一）type与term
-
-Lean是基于类型论的定理证明器，其核心就是默认一切对象/项（term）比如a，都具有对饮的类型（type）比如A，写法为a:A<br/>
-我们用check语法查看每个项的类型，eval进行计算，以下是各类例子
-
+因为常常需要使用Mathlib库，所以可以在最顶部先写好库的导入
 ```
--- 变量声明
-#check 1
-#check (1 : Float) --强制规定1为浮点数类型
-
--- 函数声明
-#check fun x : Nat ↦ x 
-#check fun (x y : Nat) ↦ x + y
-
---Nat本身也具有类型
-#check Nat
-
---Type也有类型，这样的设计解决了集合论中集合包含自身的问题
-#check Type
-#check Type 32 --lean中最多支持32层
-
---定义函数并计算
-def plus(x y : Nat) :=
-  x + y
-#eval plus 1 2
+import MIL.Common
+import Mathlib.Data.Real.Basic
+import Mathlib.Tactic
 ```
 
-## （二）实现1+1=2：定义代数结构、函数和命题
+## S01_Calculating（计算）
 
-### 2.1 如何定义代数结构
+#### 知识点1 rw相关写法
 
-inductive可用于构造新的代数结构，where后跟相应的构造子,下面我们参考皮亚诺公理，重新定义自然数
-
-```
-inductive Nat' where
-  | zero : Nat'
-  | succ : Nat' → Nat'
-#check Nat'.zero --0
-#eval Nat'.zero --就是这个值，其他没定义
-#eval Nat.zero  --这里系统约定了是0的表示
-```
-
-### 2.2 如何定义函数
-
-在定义自然数后，我们利用归纳定义新的自然数的加法运算
-```
-def Nat'.add (n k : Nat') : Nat' :=
-  match k with
-  | Nat'.zero => n
-  | Nat'.succ k' => Nat'.succ (Nat'.add n k')
-
-#check Nat'.add Nat'.zero Nat'.zero
-#eval Nat'.add (Nat'.succ Nat'.zero) (Nat'.succ Nat'.zero) --1+1=2
-```
-
-### 2.3 如何证明命题
-在lean中我们可以利用example语句书写和证明命题，一般情况下“ : ”后是对应命题，“ : ”前是该命题证明的命名，“ := ”后是对应命题的证明过程。或者可直接通俗地理解为<br/>
-“ 证明名称 : 命题 := 证明过程”
+rw ：将所有匹配的子式替换为定理或假设的右边<br/>
+nth_rw n [h]：将第n个匹配的子式替换为h的右边<br/>
+rw [← thm]：将所有匹配的子式替换为thm的左边<br/>
+calc ：逐步计算，每一步都需要证明<br/>
+ring ：自动进行环论中的计算（基本覆盖了下面的带输定理）
 
 ```
-example: Nat'.add (Nat'.succ Nat'.zero) (Nat'.succ Nat'.zero) = Nat'.succ (Nat'.succ Nat'.zero) := by
-  rfl
+example (a b c : ℝ) : a * (b * c) = b * (a * c) := by
+  rw [mul_comm a (b*c)]
+  rw [mul_assoc]
+  rw [mul_comm a c]
 ```
-上述rfl是一种常见的证明策略，接下来我们回通过实际例子再介绍几个证明策略。
-
-## （三）整除性质的证明
-
-### 2.1 陈述命题
-在 Lean 中，当使用def定义标识符时，若“ : ”后面指定的类型为Prop，则表明该标识符被定义为一个命题（即一个逻辑陈述）。
 ```
-def dvd_mul_right2 (m n k: Nat): Prop := m∣n → m∣n*k
+example (a b c : ℕ) (h : a + b = c) : (a + b) * (a + b) = a * c + b * c := by
+  nth_rw 2 [h] --修改第2处匹配的子式a+b为c
+  rw [add_mul]
 ```
-
-### 2.2 在证明前寻找引理
-证明整除的性质前，并不需要从头开始构造各种代数结构和运算，Lean以及其Mathlib库提供了诸多构造好的结构和定理，只需要从中找到能辅助证明的定理作为引理，即可简化证明时的步骤
 ```
-#check Nat.dvd_trans --Nat.dvd_trans {a b c : ℕ} (h₁ : a ∣ b) (h₂ : b ∣ c) : a ∣ c
-#check Nat.dvd_mul_right --Nat.dvd_mul_right (a b : ℕ) : a ∣ a * b
-```
-### 2.3 用三种写法去做证明吧
-1.直接构造证明项（λ 抽象式）
-```
-example : ∀ (m n k : Nat), m ∣ n → m ∣ n * k :=
-  fun m n k h ↦ Nat.dvd_trans h (Nat.dvd_mul_right n k)
-```
-2.分离式陈述（参数化前提）<br/>
-这种在声明时就加入条件h的一般不用
-```
-example (m n k : Nat) (h : m ∣ n) : m ∣ n * k :=
-  Nat.dvd_trans h (Nat.dvd_mul_right n k)
-```
-3.用by开启战术模式（交互式分步证明）
-<br/>以下这种写法更常见，分离问题和证明结构清晰
-```
-example : ∀ (m n k : Nat), m ∣ n → m ∣ n * k := by
-  intro m n k h
-  apply Nat.dvd_trans h
-  apply Nat.dvd_mul_right n k
+example : (a + b) * (a - b) = a ^ 2 - b ^ 2 := by
+  ring
 ```
 
-## （四）证明乘法分配率
-在熟悉了常见证明过程后，我们通过乘法分配律的例子区分两种含策略的证明结构
-### 4.1 策略式证明
+#### 知识点2 常见代数定理总结
+
+使用check可以观察每个定理的具体特性
 ```
-example (a b : Nat) : (a + b) ^ 2 = a ^ 2 + 2 * a * b + b ^ 2 :=
-by
-  rw [Nat.pow_two, Nat.add_mul, Nat.mul_add, Nat.mul_add]
-  rw [← Nat.add_assoc, Nat.mul_comm b a, Nat.add_assoc (a*a) (a*b) (a*b), ← Nat.two_mul, ← Nat.mul_assoc]
-  repeat rw [← Nat.pow_two]
+--交换律结合律
+#check add_comm -- add_comm : ∀ a b : G, a + b = b + a
+#check add_assoc -- add_assoc : ∀ a b c : R, a + b + c = a + (b + c)
+#check mul_comm -- mul_comm : ∀ a b : R, a * b = b * a
+#check mul_assoc -- mul_assoc : ∀ a b c : R, a * b * c = a * (b * c)
+--分配律
+#check mul_add -- mul_add : ∀ a b c : R, a * (b + c) = a * b + a * c
+#check add_mul -- add_mul : ∀ a b c : R, (a + b) * c = a * c + b * c
+--二倍或平方
+#check two_mul -- two_mul : ∀ a : R, 2 * a = a + a
+#check pow_two -- pow_two : ∀ a : R, a ^ 2 = a * a
+--减法
+#check add_sub -- add_sub : ∀ a b c : G, a + b - c = a + (b - c)
+#check mul_sub -- mul_sub : ∀ a b c : R, a * (b - c) = a * b - a * c
+#check sub_add -- sub_add : ∀ a b c : G, a - b + c = a + (c - b)
+#check sub_sub -- sub_sub : ∀ a b c : G, a - b - c = a - (b + c)
+--零和一
+#check add_zero -- add_zero : ∀ a : G, a + 0 = a
+#check zero_add -- zero_add : ∀ a : G, 0 + a = a
+#check zero_mul -- zero_mul : ∀ a : R, 0 * a = 0
+#check mul_zero -- mul_zero : ∀ a : R, a * 0 = 0
+#check sub_self -- sub_self : ∀ a : G, a - a = 0
+#check mul_one -- mul_one : ∀ a : R, a * 1 = a
+#check one_mul -- one_mul : ∀ a : R, 1 * a = a
 ```
 
-### 4.2 计算式证明（也含策略的使用）
+#### 知识点3 section...end空间
+
+在构造的空间中，可以使用variable去统一命名变量，不用单独写在每个example中
 ```
-example (a b : Nat) : (a + b) ^ 2 = a ^ 2 + 2 * a * b + b ^ 2 :=
-by
+section
+
+variable (a b c d : ℝ)
+
+example  (hyp : c = b * a - d) (hyp' : d = a * b) : c = 0 := by
+  rw [hyp]
+  rw [hyp']
+  rw [mul_comm b a]
+  rw [sub_self]
+
+end
+```
+
+#### 知识点4 calc格式书写证明
+
+利用calc格式，可以更好的模拟数学解题的写法去书写证明过程，展示中间过程
+
+```
+example : (a + b) * (a + b) = a * a + 2 * (a * b) + b * b :=
   calc
-    _ = a * a + a * b + (b * a + b * b) := by rw [Nat.pow_two, Nat.add_mul, Nat.mul_add, Nat.mul_add]
-    _ =  a * a + 2 * a * b + b * b := by
-      rw [← Nat.add_assoc, Nat.mul_comm b a, Nat.add_assoc (a*a) (a*b) (a*b), ← Nat.two_mul, ← Nat.mul_assoc]
-    _ = a ^ 2 + 2 * a * b + b ^ 2 := by rw [Nat.pow_two, Nat.pow_two]
+    _ = a * a + b * a + (a * b + b * b) := by
+      rw [mul_add, add_mul, add_mul]
+    _ = a * a + (b * a + a * b) + b * b := by
+      rw [← add_assoc (a*a+b*a) (a*b) (b*b), add_assoc (a*a) (b*a) (a*b)]
+    _ = a * a + 2 * (a * b) + b * b := by
+      rw [mul_comm b a, ← two_mul]
 ```
+
+
+## S02_Proving_Identities_in_Algebraic_Structures
+
+
+## S03_Using_Theorems_and_Lemmas
+
+
+## S04_More_on_Order_and_Divisibility
+
+
+## S05_Proving_Facts_about_Algebraic_Structures

@@ -66,6 +66,11 @@ example : (a + b) * (a - b) = a ^ 2 - b ^ 2 := by
 #check sub_self -- sub_self : ∀ a : G, a - a = 0
 #check mul_one -- mul_one : ∀ a : R, a * 1 = a
 #check one_mul -- one_mul : ∀ a : R, 1 * a = a
+--等式消去
+#check add_neg_cancel -- add_neg_cancel : ∀ a : R, a + -a = 0
+#check neg_add_cancel -- neg_add_cancel : ∀ a : R, -a + a = 0
+#check neg_add_cancel_left --neg_add_cancel_left : ∀ (a b : G), -a + (a + b) = b
+#check add_left_cancel --add_left_cancel : {a b c : R} (h : a + b = a + c) : b = c
 ```
 
 #### 知识点3 section...end空间
@@ -101,7 +106,25 @@ example : (a + b) * (a + b) = a * a + 2 * (a * b) + b * b :=
 ```
 
 
-## S02_Proving_Identities_in_Algebraic_Structures
+## S02_Proving_Identities_in_Algebraic_Structures（证明代数结构的性质）
+#### 知识点1 熟悉简单的代数性质证明
+有关消去的场景：
+```
+theorem mul_zero (a : R) : a * 0 = 0 := by
+  have h : a * 0 + a * 0 = a * 0 + 0 := by
+    rw [← mul_add, add_zero, add_zero]
+  rw [add_left_cancel h]
+```
+#### 知识点2 have的用法
+have可以引入一个新的命题
+```
+theorem zero_mul (a : R) : 0 * a = 0 := by
+  have h : 0 * a + 0 * a = 0 * a + 0 := by rw [← add_mul, add_zero, add_zero]
+  rw [add_left_cancel h]
+```
+
+#### 知识点3
+
 
 
 ## S03_Using_Theorems_and_Lemmas

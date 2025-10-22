@@ -145,7 +145,8 @@ document.addEventListener('DOMContentLoaded', function() {
             '资料整理': 'basics-resources',
             '在线使用': 'hands-online',
             '安装配置': 'hands-setup',
-            '开发工程': 'hands-project'
+            '开发工程': 'hands-project',
+            '交互方式': 'hands-interact'
         };
         const selector = '.markdown-content p, .markdown-content li';
         mount.querySelectorAll(selector).forEach(el => {

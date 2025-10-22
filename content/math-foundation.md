@@ -123,7 +123,7 @@ theorem zero_mul (a : R) : 0 * a = 0 := by
   rw [add_left_cancel h]
 ```
 
-#### 知识点3
+#### 知识点3 
 
 
 
